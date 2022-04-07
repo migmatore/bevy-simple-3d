@@ -4,7 +4,7 @@ use bevy_rapier3d::prelude::*;
 
 #[derive(Component)]
 struct Player {
-    speed: f32
+    speed: f32,
 }
 
 #[derive(Component)]
@@ -48,7 +48,10 @@ fn spawn_player(
         .insert_bundle(collider)
         .insert(RigidBodyPositionSync::Discrete)
         .insert(Jumper { jump_impulse: 5. })
-        .insert(Player { speed: 3.5 });
+        .insert(Player { speed: 3.5 })
+        .with_children(|parent| {
+            parent.spawn_bundle(setup());
+        });
 }
 
 fn player_jumps(
@@ -64,7 +67,7 @@ fn player_jumps(
 
 fn player_movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut players: Query<(&Player, &mut RigidBodyVelocityComponent)>
+    mut players: Query<(&Player, &mut RigidBodyVelocityComponent)>,
 ) {
     for (player, mut velocity) in players.iter_mut() {
         if keyboard_input.pressed(KeyCode::Left) {
@@ -87,8 +90,36 @@ fn spawn_floor(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    commands.spawn_bundle(PbrBundle {
+        mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
+        material: materials.add(Color::rgb(1., 0., 0.).into()),
+        transform: Transform::from_xyz(0.0, 0.0, 0.0),
+        ..Default::default()
+    });
+
+    for x in 0..10 {
+        add_t(&mut commands, &mut meshes, &mut materials, x as f32);
+    }
+
+    // commands
+    //     .spawn_bundle(PbrBundle {
+    //         mesh: meshes.add(Mesh::from(shape::Plane { size: 5.0 })),
+    //         material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+    //         ..Default::default()
+    //     })
+    //     .insert_bundle(rigid_body)
+    //     .insert_bundle(collider)
+    //     .insert(RigidBodyPositionSync::Discrete);
+}
+
+fn add_t(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    x: f32,
+) {
     let rigid_body = RigidBodyBundle {
-        position: Vec3::new(0.0, -2., 0.).into(),
+        position: Vec3::new(x + 1., -2., 0.).into(),
         mass_properties: RigidBodyMassPropsFlags::ROTATION_LOCKED.into(),
         activation: RigidBodyActivation::cannot_sleep().into(),
         ccd: RigidBodyCcd {
@@ -100,22 +131,15 @@ fn spawn_floor(
         ..Default::default()
     };
     let collider = ColliderBundle {
-        shape: ColliderShape::cuboid(5. / 2., 0., 5. / 2.).into(),
+        shape: ColliderShape::cuboid(1. / 2., 1. / 2., 1. / 2.).into(),
         ..Default::default()
     };
 
     commands
         .spawn_bundle(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 0.1 })),
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
             material: materials.add(Color::rgb(1., 0., 0.).into()),
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
-            ..Default::default()
-        });
-
-    commands
-        .spawn_bundle(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane { size: 5.0 })),
-            material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
             ..Default::default()
         })
         .insert_bundle(rigid_body)
@@ -135,12 +159,18 @@ fn spawn_light(mut commands: Commands) {
     });
 }
 
-fn setup(mut commands: Commands) {
-    commands.spawn_bundle(PerspectiveCameraBundle {
-        
+fn setup() -> PerspectiveCameraBundle {
+    let mut camera = PerspectiveCameraBundle {
         transform: Transform::from_xyz(5., 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
         ..Default::default()
-    });
+    };
+
+    camera
+
+    // commands.spawn_bundle(PerspectiveCameraBundle {
+    //     transform: Transform::from_xyz(5., 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
+    //     ..Default::default()
+    // });
 }
 
 fn main() {
@@ -156,7 +186,7 @@ fn main() {
             ..Default::default()
         })
         .insert_resource(ClearColor(Color::rgb(0.04, 0.04, 0.04)))
-        .add_startup_system(setup)
+        //.add_startup_system(setup)
         .add_startup_stage("player_stage", SystemStage::single(spawn_player))
         .add_system(player_jumps.system())
         .add_system(player_movement.system())
